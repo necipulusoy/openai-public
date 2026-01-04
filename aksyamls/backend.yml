@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: openaibackend
-        image: backend:latest  # Local image
+        image: necipulusoyy9120/openai-backend:1.0
         imagePullPolicy: Never
         ports:
         - containerPort: 8080
@@ -72,3 +72,4 @@ spec:
     - name: http
       port: 80
       targetPort: 8080
+
