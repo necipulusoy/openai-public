@@ -31,6 +31,7 @@ docker build -t backend:latest .
 cd ../frontend
 docker build -t frontend:latest .
 ```
+- Build edilmiş hazır image'lar aksyamls folder'ının içinde var onları da kullanabilirsiniz. 
 
 ### 3. Kubernetes Secret Oluştur
 API key için secret oluştur:
