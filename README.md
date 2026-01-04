@@ -1,24 +1,24 @@
-# 🤖 NecipGPT (Kubernetes + Redis + Azure OpenAI)
+# 🤖 ChatGPT (Kubernetes + Redis + Azure OpenAI)
 
 Bu proje, basit bir sohbet arayüzü (frontend) + API (backend) ile Azure OpenAI’a bağlanır. Sohbet geçmişi ve sol taraftaki chat listesi **Redis** üzerinde tutulur. Böylece pod yeniden başlasa bile geçmiş kaybolmaz.
 
 ## Ne İşe Yarar?
-- **Chat Arayüzü**: Kullanıcı dostu web arayüzü ile Azure OpenAI modelleriyle sohbet et.
+- **Chat Arayüzü**:  Web arayüzü ile Azure OpenAI modelleriyle sohbet et.
 - **Chat Geçmişi**: Redis'te saklanan geçmiş konuşmalar, uygulama yeniden başlatıldığında kaybolmaz.
 - **Kubernetes Deploy**: Local veya bulut ortamında kolayca deploy edilebilir.
 - **Token Takibi**: Her yanıtın sonunda kullanılan token sayısı gösterilir (maliyet hesabı için).
 
 ## Gereksinimler
-- **Kubernetes** (local: OrbStack, Minikube, Kind vb.)
+- **Kubernetes** (local: OrbStack, Minikube, Kind, EKS, AKS vb.)
 - **Docker** (image build için)
-- **Azure OpenAI** hesabı + Endpoint + kimlik bilgisi
+- **Azure OpenAI** hesabı + Endpoint + API Key
 
 ## Kurulum Adımları
 
 ### 1. Azure OpenAI Bilgilerini Hazırla
 Azure portal'dan şu bilgileri al:
 - `AZURE_OPENAI_ENDPOINT` (örneğin: `https://your-resource.openai.azure.com/`)
-- `AZURE_OPENAI_API_KEY` (API anahtarı)
+- `AZURE_OPENAI_API_KEY` (API Key)
 - `AZURE_OPENAI_DEPLOYMENT` (model adı, örneğin: `gpt-4o-mini`)
 
 ### 2. Image'ları Build Et
@@ -61,7 +61,7 @@ Tarayıcıda: `http://localhost:8080`
 - Yeni chat başlat: "➕ New Chat"
 - Sohbet et: Mesaj yaz, Send'e bas.
 - Geçmişe dön: Chat'e tıkla.
-- Tümünü temizle: "🧹 Clear All Chats"
+- Tümünü temizle: "Clear All Chats"
 
 ## Sorun Giderme
 - **Pod'lar başlamıyor**: `kubectl get pods` ile durum kontrol et. ImagePull hatası varsa `imagePullPolicy: Never` ekle.
