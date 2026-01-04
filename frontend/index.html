@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🤖 NecipGPT</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-header">🤖 NecipGPT</div>
+
+      <button class="menu-btn" id="new-chat">➕ New Chat</button>
+
+      <div id="chat-list" class="chat-list"></div>
+
+      <button class="menu-btn danger" id="clear-all">🧹 Clear All Chats</button>
+
+      <div class="sidebar-footer">
+        <small>Powered by Azure OpenAI</small>
+      </div>
+    </div>
+
+    <!-- MAIN CHAT WINDOW -->
+    <div class="main">
+      <div id="chat-box" class="chat-box">
+        <div id="empty-state" class="empty-state">Ask me anything…</div>
+      </div>
+
+      <div class="input-container">
+        <textarea id="prompt" rows="2" placeholder="Type your message..."></textarea>
+        <button id="send">Send</button>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+  let chats = [];
+  let activeChatId = null;
+
+  const chatBox = document.getElementById("chat-box");
+  const chatList = document.getElementById("chat-list");
+  const input = document.getElementById("prompt");
+  const sendBtn = document.getElementById("send");
+  const newChatBtn = document.getElementById("new-chat");
+  const clearAllBtn = document.getElementById("clear-all");
+
+  /* ---------- EMPTY STATE ---------- */
+  function showEmptyState() {
+    chatBox.innerHTML = '<div id="empty-state" class="empty-state">Ask me anything…</div>';
+  }
+
+  function removeEmptyState() {
+    const empty = document.getElementById("empty-state");
+    if (empty) empty.remove();
+  }
+
+  /* ---------- RENDER SIDEBAR CHAT LIST ---------- */
+  function renderChatList() {
+    chatList.innerHTML = "";
+    chats.forEach(chat => {
+      const btn = document.createElement("button");
+      btn.className = "chat-item";
+      btn.textContent = chat.title || "New Chat";
+      btn.onclick = () => loadChat(chat.id);
+      chatList.appendChild(btn);
+    });
+  }
+
+  function formatMeta(meta) {
+    if (!meta) return null;
+    const usage = meta.usage || {};
+    const latency = meta.latency_ms != null ? `${meta.latency_ms} ms` : "n/a";
+    return `Latency: ${latency} | Tokens: ${usage.prompt_tokens || 0}/${usage.completion_tokens || 0}/${usage.total_tokens || 0}`;
+  }
+
+  /* ---------- LOAD CHAT SAFELY ---------- */
+  async function loadChat(id) {
+    activeChatId = id;
+    chatBox.innerHTML = "";
+    try {
+      const res = await fetch(`/chats/${id}`);
+      const messages = await res.json();
+      if (!Array.isArray(messages) || messages.length === 0) {
+        showEmptyState();
+        return;
+      }
+      messages.forEach(msg => addMessage(msg.role, msg.content, formatMeta(msg.meta)));
+    } catch (err) {
+      showEmptyState();
+    }
+  }
+
+  /* ---------- CREATE NEW CHAT ---------- */
+  function createNewChat() {
+    activeChatId = "chat-" + Date.now();
+    showEmptyState();
+  }
+
+  /* ---------- UI: ADD MESSAGE ---------- */
+  function addMessage(role, content, metaText = null) {
+    removeEmptyState();
+
+    const msg = document.createElement("div");
+    msg.classList.add("message", role);
+    msg.innerHTML = `<div class="bubble">${content}</div>`;
+    chatBox.appendChild(msg);
+
+    if (metaText) {
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = metaText;
+      msg.querySelector(".bubble").appendChild(meta);
+    }
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  /* ---------- TYPING EFFECT ---------- */
+  async function typeMessage(role, text, metaText = null) {
+    removeEmptyState();
+
+    const msg = document.createElement("div");
+    msg.classList.add("message", role);
+    const bubble = document.createElement("div");
+    bubble.classList.add("bubble");
+    msg.appendChild(bubble);
+    chatBox.appendChild(msg);
+
+    for (let i = 0; i < text.length; i++) {
+      bubble.textContent += text[i];
+      chatBox.scrollTop = chatBox.scrollHeight;
+      await new Promise(r => setTimeout(r, 7));
+    }
+
+    if (metaText) {
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = metaText;
+      bubble.appendChild(meta);
+    }
+  }
+
+  /* ---------- SEND BUTTON ---------- */
+  sendBtn.addEventListener("click", async () => {
+    const prompt = input.value.trim();
+    if (!prompt) return;
+
+    addMessage("user", prompt);
+
+    input.value = "";
+
+    addMessage("assistant", "Thinking...");
+
+    try {
+      const start = performance.now();
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: activeChatId,
+          message: prompt
+        }),
+      });
+      console.log("Fetch response status:", res.status);
+      const durationMs = Math.round(performance.now() - start);
+
+      const data = await res.json();
+      console.log("Response data:", data);
+      if (!res.ok) {
+        throw new Error(data.error || data.detail || "Backend error");
+      }
+      const botText = data.text || "";
+      if (!botText) {
+        throw new Error("Empty response from backend");
+      }
+      const usage = data.usage || {};
+      const latency = data.latency_ms != null ? data.latency_ms : durationMs;
+      const metaText = `Latency: ${latency} ms | Tokens: ${usage.prompt_tokens || 0}/${usage.completion_tokens || 0}/${usage.total_tokens || 0}`;
+      console.log("Meta text:", metaText);
+
+      chatBox.lastChild.remove(); // remove "Thinking..."
+
+      await typeMessage("assistant", botText, metaText);
+
+      await refreshChats(activeChatId, false);
+    } catch (err) {
+      addMessage("assistant", "⚠️ Error: " + err.message);
+    }
+  });
+
+  /* ---------- SIDEBAR BUTTONS ---------- */
+  newChatBtn.addEventListener("click", createNewChat);
+
+  clearAllBtn.addEventListener("click", () => {
+    if (confirm("Delete all chats?")) {
+      fetch("/chats", { method: "DELETE" }).finally(() => {
+        chats = [];
+        renderChatList();
+        showEmptyState();
+      });
+    }
+  });
+
+  /* ---------- INITIALIZE ---------- */
+  async function refreshChats(focusId = null, loadFocus = true) {
+    try {
+      const res = await fetch("/chats");
+      chats = await res.json();
+      renderChatList();
+      if (focusId && loadFocus) {
+        loadChat(focusId);
+      } else if (chats.length > 0) {
+        loadChat(chats[0].id);
+      }
+    } catch (err) {
+      chats = [];
+      renderChatList();
+    }
+  }
+
+  refreshChats().then(() => {
+    if (chats.length === 0) {
+      createNewChat();
+    }
+  });
+</script>
+
+</body>
+</html>

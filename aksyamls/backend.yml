@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openaibackend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openaibackend
+  template:
+    metadata:
+      labels:
+        app: openaibackend
+        
+    spec:
+      containers:
+      - name: openaibackend
+        image: backend:latest  # Local image
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        env:
+            - name: AZURE_OPENAI_ENDPOINT
+              value: "https://canadaeast.api.cognitive.microsoft.com"
+            - name: AZURE_OPENAI_DEPLOYMENT
+              value: "kk_deploy_main-f35e0932a4bd4b59"
+            - name: AZURE_OPENAI_API_VERSION
+              value: "2025-01-01-preview"
+            - name: AZURE_OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: azure-openai-secret
+                  key: api-key
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_SSL
+              value: "false"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+       
+
+
+---
+apiVersion: v1
+kind: Service 
+metadata:
+  name: openaibackend-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: openaibackend
+  ports: 
+    - name: http
+      port: 80
+      targetPort: 8080
